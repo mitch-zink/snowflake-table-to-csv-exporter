@@ -43,6 +43,6 @@ The script will connect to your Snowflake database using the provided credential
 
 ---
 
-**Note**: 📝 Remember to adjust the `START_DATE`, `END_DATE`, `TABLE_NAME`, and `DATE_COLUMN_NAME` variables in the `snowflake_csv_creator.py` script according to your specific requirements.
+**Note**: 📝 Remember to adjust the `START_DATE`, `END_DATE`, `TABLE_NAME`, and `DATE_COLUMN_NAME` variables in the `snowflake_table_to_csv_data_exporter.py` script according to your specific requirements.
 
 ---
