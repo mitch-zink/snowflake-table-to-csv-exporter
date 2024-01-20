@@ -77,7 +77,7 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
             )
 
             # Writing the data to a CSV file
-            with open(csv_file_path, "w", newline="") as csv_file:
+            with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
                 writer = csv.writer(csv_file)
                 writer.writerow([col[0] for col in cur.description])
                 for row in rows:
@@ -85,7 +85,7 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
 
             logging.info("Data written to %s - %d rows", csv_file_path, len(rows))
 
-    except Exception as e:
+    except snowflake.connector.Error as e:
         logging.error("Error in fetch_and_write_data: %s", e)
 
 
