@@ -1,118 +1,142 @@
-# Description: This script exports data from a Snowflake table to CSV files
-# Author: Mitch Zink
-# Last Updated: 2024-01-20
+"""
+Description: This script exports data from a Snowflake table to CSV files
+Author: Mitch Zink
+Last Updated: 2024-01-20
+"""
+
+import csv
+import logging
+import os
+from datetime import datetime, timedelta
 
 import snowflake.connector
-import csv
-import os
-import logging
-from datetime import datetime, timedelta
 
 # Setup basic logging for monitoring
 logging.basicConfig(level=logging.INFO)
 
 # Set your Snowflake account information from environment variables
-ACCOUNT = os.environ.get('SNOWFLAKE_ACCOUNT')
-USER = os.environ.get('SNOWFLAKE_USER')
-ROLE = os.environ.get('SNOWFLAKE_ROLE')  
-PASSWORD = os.environ.get('SNOWFLAKE_PASSWORD') 
-WAREHOUSE = os.environ.get('SNOWFLAKE_WAREHOUSE')
+ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT")
+USER = os.environ.get("SNOWFLAKE_USER")
+ROLE = os.environ.get("SNOWFLAKE_ROLE")
+PASSWORD = os.environ.get("SNOWFLAKE_PASSWORD")
+WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE")
 
 # Define the date range for data extraction
 START_DATE = datetime(1995, 1, 1)  # On or after | Format: YYYY, M, D
-END_DATE = datetime(1995, 1, 2)    # On or before | Format: YYYY, M, D
-TABLE_NAME = "SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.ORDERS"  # Source table | Format: DATABASE.SCHEMA.TABLE
+END_DATE = datetime(1995, 1, 2)  # On or before | Format: YYYY, M, D
+TABLE_NAME = "SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.ORDERS"  # Format: DATABASE.SCHEMA.TABLE
 DATE_COLUMN_NAME = "O_ORDERDATE"  # Column with date information
 FILENAME_PREFIX = "orders"  # Prefix for the CSV files
 
 # Specify the directory for storing CSV files
-CSV_DIR = "csv" 
+CSV_DIR = "csv"
 
-# Function to fetch and write data for a given day
-def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name):
-    # Convert datetime objects to strings for the query
-    start_date_str = start_date.strftime("%Y-%m-%d")
-    end_date_str = end_date.strftime("%Y-%m-%d")
+
+# Fetch and write data to CSV files for a given date range
+def fetch_and_write_data(connection, day_start, day_end, table_name, date_column_name):
+    """
+    Fetches data from a Snowflake table for a given date range and writes it to a CSV file.
+
+    Args:
+        connection: Snowflake connection object.
+        day_start (datetime): Start date for data extraction.
+        day_end (datetime): End date for data extraction.
+        table_name (str): Name of the Snowflake table.
+        date_column_name (str): Name of the column with date information in the table.
+    """
+    # Date dictionary - Convert datetime objects to strings for the query
+    date_info = {
+        "start_date_str": day_start.strftime("%Y-%m-%d"),
+        "end_date_str": day_end.strftime("%Y-%m-%d"),
+    }
 
     # SQL query to fetch data for the specified date range
-    query = f"""
-    SELECT * 
-    FROM {table_name}
-    WHERE {date_column_name} >= '{start_date_str}' 
-    AND {date_column_name} < '{end_date_str}' 
-    """
+    query = (
+        f"SELECT * FROM {table_name} "
+        f"WHERE {date_column_name} >= '{date_info['start_date_str']}' "
+        f"AND {date_column_name} < '{date_info['end_date_str']}'"
+    )
 
     # Log the full query for visibility
-    logging.info(f"Executing query: {query.strip()}")
+    logging.info("Executing query: %s", query.strip())
 
     # Execute the query and write results to a CSV file
     try:
         # Execute the query and fetch all rows
-        with con.cursor() as cur:
+        with connection.cursor() as cur:
             cur.execute(query)
             rows = cur.fetchall()
-            logging.info(f"Query for {start_date_str} executed successfully")
+            logging.info(
+                "Query for %s executed successfully", date_info["start_date_str"]
+            )
 
             # Formatting the filename with date and writing data to CSV
-            formatted_filename_date = start_date.strftime("%m_%d_%Y")
-            csv_file = os.path.join(CSV_DIR, f"{FILENAME_PREFIX}_{formatted_filename_date}.csv")
+            formatted_filename_date = day_start.strftime("%m_%d_%Y")
+            csv_file_path = os.path.join(
+                CSV_DIR, f"{FILENAME_PREFIX}_{formatted_filename_date}.csv"
+            )
 
             # Writing the data to a CSV file
-            with open(csv_file, 'w', newline='') as file:
-                writer = csv.writer(file)
+            with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
+                writer = csv.writer(csv_file)
                 writer.writerow([col[0] for col in cur.description])
                 for row in rows:
                     writer.writerow(row)
 
-            logging.info(f"Data written to {csv_file} - {len(rows)} rows")
-    
-    except Exception as e:
-        logging.error(f"Error in fetch_and_write_data: {e}")
+            logging.info("Data written to %s - %d rows", csv_file_path, len(rows))
 
-# Function to establish a connection to Snowflake
+    except snowflake.connector.Error as e:
+        logging.error("Error in fetch_and_write_data: %s", e)
+
+
 def create_snowflake_connection():
+    """
+    Establishes a connection to a Snowflake database.
+
+    Returns:
+        A Snowflake connection object if successful, raises an Exception otherwise.
+    """
     # Attempt to connect to Snowflake and handle any connection errors
     try:
-        con = snowflake.connector.connect(
-            user=USER,
-            password=PASSWORD,
-            account=ACCOUNT,
-            role=ROLE
+        snowflake_conn = snowflake.connector.connect(
+            user=USER, password=PASSWORD, account=ACCOUNT, role=ROLE
         )
         logging.info("Connected to Snowflake")
-        return con
+        return snowflake_conn
     except Exception as e:
-        logging.error(f"Error connecting to Snowflake: {e}")
-        raise
+        logging.error("Error connecting to Snowflake: %s", e)
+        raise RuntimeError("An error occurred while connecting to Snowflake.") from e
 
 # Main execution block
 try:
     # Establishing Snowflake connection
-    con = create_snowflake_connection()
+    snowflake_connection = create_snowflake_connection()
 
     # Setting the specified warehouse as the current warehouse
-    logging.info(f"Setting warehouse to {WAREHOUSE}")
-    con.cursor().execute(f"USE WAREHOUSE {WAREHOUSE}")
+    logging.info("Setting warehouse to %s", WAREHOUSE)
+    snowflake_connection.cursor().execute(f"USE WAREHOUSE {WAREHOUSE}")
 
     # Check if the CSV directory exists and clear it if it does
     if os.path.exists(CSV_DIR):
-        logging.info(f"Deleting existing directory {CSV_DIR}")
-        for file in os.listdir(CSV_DIR):
-            os.remove(os.path.join(CSV_DIR, file))
+        logging.info("Deleting existing directory %s", CSV_DIR)
+        for filename in os.listdir(CSV_DIR):
+            os.remove(os.path.join(CSV_DIR, filename))
         os.rmdir(CSV_DIR)
 
     # Create the CSV directory
     os.makedirs(CSV_DIR, exist_ok=True)
 
     # Loop through each day in the date range and fetch data
-    start_date = START_DATE
-    while start_date <= END_DATE:
-        next_day = start_date + timedelta(days=1)
-        fetch_and_write_data(con, start_date, next_day, TABLE_NAME, DATE_COLUMN_NAME)
-        start_date = next_day
+    current_date = START_DATE
+    while current_date <= END_DATE:
+        next_day = current_date + timedelta(days=1)
+        fetch_and_write_data(
+            snowflake_connection, current_date, next_day, TABLE_NAME, DATE_COLUMN_NAME
+        )
+        current_date = next_day
 
 finally:
     # Ensuring the Snowflake connection is closed after processing
-    if con:
-        con.close()
+    if snowflake_connection:
+        snowflake_connection.close()
         logging.info("Connection closed")
