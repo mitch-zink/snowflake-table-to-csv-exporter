@@ -1,6 +1,8 @@
-# Description: This script exports data from a Snowflake table to CSV files
-# Author: Mitch Zink
-# Last Updated: 2024-01-20
+"""
+Description: This script exports data from a Snowflake table to CSV files
+Author: Mitch Zink
+Last Updated: 2024-01-20
+"""
 
 import csv
 import logging
@@ -22,15 +24,25 @@ WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE")
 # Define the date range for data extraction
 START_DATE = datetime(1995, 1, 1)  # On or after | Format: YYYY, M, D
 END_DATE = datetime(1995, 1, 2)  # On or before | Format: YYYY, M, D
-TABLE_NAME = "SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.ORDERS"  # Source table | Format: DATABASE.SCHEMA.TABLE
+TABLE_NAME = "SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.ORDERS"  # Format: DATABASE.SCHEMA.TABLE
 DATE_COLUMN_NAME = "O_ORDERDATE"  # Column with date information
 FILENAME_PREFIX = "orders"  # Prefix for the CSV files
 
 # Specify the directory for storing CSV files
 CSV_DIR = "csv"
 
-# Function to fetch and write data for a given day
+
 def fetch_and_write_data(connection, day_start, day_end, table_name, date_column_name):
+    """
+    Fetches data from a Snowflake table for a given date range and writes it to a CSV file.
+
+    Args:
+        connection: Snowflake connection object.
+        day_start (datetime): Start date for data extraction.
+        day_end (datetime): End date for data extraction.
+        table_name (str): Name of the Snowflake table.
+        date_column_name (str): Name of the column with date information in the table.
+    """
     # Convert datetime objects to strings for the query
     start_date_str = day_start.strftime("%Y-%m-%d")
     end_date_str = day_end.strftime("%Y-%m-%d")
@@ -72,8 +84,14 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
     except Exception as e:
         logging.error("Error in fetch_and_write_data: %s", e)
 
-# Function to establish a connection to Snowflake
+
 def create_snowflake_connection():
+    """
+    Establishes a connection to a Snowflake database.
+
+    Returns:
+        A Snowflake connection object if successful, raises an Exception otherwise.
+    """
     # Attempt to connect to Snowflake and handle any connection errors
     try:
         snowflake_conn = snowflake.connector.connect(
@@ -84,6 +102,7 @@ def create_snowflake_connection():
     except Exception as e:
         logging.error("Error connecting to Snowflake: %s", e)
         raise
+
 
 # Main execution block
 try:
@@ -108,7 +127,9 @@ try:
     current_date = START_DATE
     while current_date <= END_DATE:
         next_day = current_date + timedelta(days=1)
-        fetch_and_write_data(snowflake_connection, current_date, next_day, TABLE_NAME, DATE_COLUMN_NAME)
+        fetch_and_write_data(
+            snowflake_connection, current_date, next_day, TABLE_NAME, DATE_COLUMN_NAME
+        )
         current_date = next_day
 
 finally:
