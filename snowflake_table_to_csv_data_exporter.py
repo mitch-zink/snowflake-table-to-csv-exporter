@@ -44,7 +44,7 @@ def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name
     """
 
     # Log the full query for visibility
-    logging.info(f"Executing query: {query.strip()}")
+    logging.info("Executing query: %s", query.strip())
 
     # Execute the query and write results to a CSV file
     try:
@@ -52,7 +52,7 @@ def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name
         with con.cursor() as cur:
             cur.execute(query)
             rows = cur.fetchall()
-            logging.info(f"Query for {start_date_str} executed successfully")
+            logging.info("Query for %s executed successfully", start_date_str)
 
             # Formatting the filename with date and writing data to CSV
             formatted_filename_date = start_date.strftime("%m_%d_%Y")
@@ -67,10 +67,10 @@ def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name
                 for row in rows:
                     writer.writerow(row)
 
-            logging.info(f"Data written to {csv_file} - {len(rows)} rows")
+            logging.info("Data written to %s - %d rows", csv_file, len(rows))
 
     except Exception as e:
-        logging.error(f"Error in fetch_and_write_data: {e}")
+        logging.error("Error in fetch_and_write_data: %s", e)
 
 
 # Function to establish a connection to Snowflake
@@ -83,7 +83,7 @@ def create_snowflake_connection():
         logging.info("Connected to Snowflake")
         return con
     except Exception as e:
-        logging.error(f"Error connecting to Snowflake: {e}")
+        logging.error("Error connecting to Snowflake: %s", e)
         raise
 
 
@@ -93,12 +93,12 @@ try:
     con = create_snowflake_connection()
 
     # Setting the specified warehouse as the current warehouse
-    logging.info(f"Setting warehouse to {WAREHOUSE}")
+    logging.info("Setting warehouse to %s", WAREHOUSE)
     con.cursor().execute(f"USE WAREHOUSE {WAREHOUSE}")
 
     # Check if the CSV directory exists and clear it if it does
     if os.path.exists(CSV_DIR):
-        logging.info(f"Deleting existing directory {CSV_DIR}")
+        logging.info("Deleting existing directory %s", CSV_DIR)
         for file in os.listdir(CSV_DIR):
             os.remove(os.path.join(CSV_DIR, file))
         os.rmdir(CSV_DIR)
