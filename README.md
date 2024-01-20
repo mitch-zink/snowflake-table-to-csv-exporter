@@ -50,3 +50,6 @@ Note: 📝 The account identifier looks something like AB1234. Read more on this
     ```
 
     The script will connect to your Snowflake database using the provided credentials, extract data from the specified table, and save it into CSV files in a designated directory 📁. The data extraction is based on the date range defined within the script.
+
+## Demo 🏃‍♂️💨
+![Demo Run](run_example.gif)
