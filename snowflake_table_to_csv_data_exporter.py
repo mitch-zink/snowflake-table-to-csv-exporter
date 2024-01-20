@@ -1,6 +1,6 @@
 # Description: This script exports data from a Snowflake table to CSV files
 # Author: Mitch Zink
-# Last Updated: 2023-01-20
+# Last Updated: 2024-01-20
 
 import snowflake.connector
 import csv
