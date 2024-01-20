@@ -31,7 +31,7 @@ FILENAME_PREFIX = "orders"  # Prefix for the CSV files
 # Specify the directory for storing CSV files
 CSV_DIR = "csv"
 
-
+# Fetch and write data to CSV files for a given date range
 def fetch_and_write_data(connection, day_start, day_end, table_name, date_column_name):
     """
     Fetches data from a Snowflake table for a given date range and writes it to a CSV file.
@@ -43,17 +43,17 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
         table_name (str): Name of the Snowflake table.
         date_column_name (str): Name of the column with date information in the table.
     """
-    # Convert datetime objects to strings for the query
-    start_date_str = day_start.strftime("%Y-%m-%d")
-    end_date_str = day_end.strftime("%Y-%m-%d")
+    
+    # Date dictionary - Convert datetime objects to strings for the query
+    date_info = {
+        "start_date_str": day_start.strftime("%Y-%m-%d"),
+        "end_date_str": day_end.strftime("%Y-%m-%d"),
+    }
 
     # SQL query to fetch data for the specified date range
-    query = f"""
-    SELECT * 
-    FROM {table_name}
-    WHERE {date_column_name} >= '{start_date_str}' 
-    AND {date_column_name} < '{end_date_str}' 
-    """
+    query = (f"SELECT * FROM {table_name} "
+             f"WHERE {date_column_name} >= '{date_info['start_date_str']}' "
+             f"AND {date_column_name} < '{date_info['end_date_str']}'")
 
     # Log the full query for visibility
     logging.info("Executing query: %s", query.strip())
@@ -64,7 +64,7 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
         with connection.cursor() as cur:
             cur.execute(query)
             rows = cur.fetchall()
-            logging.info("Query for %s executed successfully", start_date_str)
+            logging.info("Query for %s executed successfully", date_info['start_date_str'])
 
             # Formatting the filename with date and writing data to CSV
             formatted_filename_date = day_start.strftime("%m_%d_%Y")
@@ -83,6 +83,7 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
 
     except Exception as e:
         logging.error("Error in fetch_and_write_data: %s", e)
+
 
 
 def create_snowflake_connection():
