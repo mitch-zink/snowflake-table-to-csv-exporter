@@ -2,11 +2,12 @@
 # Author: Mitch Zink
 # Last Updated: 2024-01-20
 
-import snowflake.connector
 import csv
-import os
 import logging
+import os
 from datetime import datetime, timedelta
+
+import snowflake.connector
 
 # Setup basic logging for monitoring
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +28,6 @@ FILENAME_PREFIX = "orders"  # Prefix for the CSV files
 
 # Specify the directory for storing CSV files
 CSV_DIR = "csv"
-
 
 # Function to fetch and write data for a given day
 def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name):
@@ -72,7 +72,6 @@ def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name
     except Exception as e:
         logging.error("Error in fetch_and_write_data: %s", e)
 
-
 # Function to establish a connection to Snowflake
 def create_snowflake_connection():
     # Attempt to connect to Snowflake and handle any connection errors
@@ -85,7 +84,6 @@ def create_snowflake_connection():
     except Exception as e:
         logging.error("Error connecting to Snowflake: %s", e)
         raise
-
 
 # Main execution block
 try:
