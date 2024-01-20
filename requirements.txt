@@ -1,2 +1,2 @@
-snowflake-connector-python==2.7.3
-python-dateutil
+snowflake-connector-python==3.6.0
+python-dateutil==2.8.2

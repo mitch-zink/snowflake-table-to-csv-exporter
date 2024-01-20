@@ -1,3 +1,7 @@
+# Description: This script exports data from a Snowflake table to CSV files
+# Author: Mitch Zink
+# Last Updated: 2023-01-20
+
 import snowflake.connector
 import csv
 import os
@@ -19,6 +23,7 @@ START_DATE = datetime(1995, 1, 1)  # On or after | Format: YYYY, M, D
 END_DATE = datetime(1995, 1, 2)    # On or before | Format: YYYY, M, D
 TABLE_NAME = "SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.ORDERS"  # Source table | Format: DATABASE.SCHEMA.TABLE
 DATE_COLUMN_NAME = "O_ORDERDATE"  # Column with date information
+FILENAME_PREFIX = "orders"  # Prefix for the CSV files
 
 # Specify the directory for storing CSV files
 CSV_DIR = "csv" 
@@ -42,6 +47,7 @@ def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name
 
     # Execute the query and write results to a CSV file
     try:
+        # Execute the query and fetch all rows
         with con.cursor() as cur:
             cur.execute(query)
             rows = cur.fetchall()
@@ -49,8 +55,9 @@ def fetch_and_write_data(con, start_date, end_date, table_name, date_column_name
 
             # Formatting the filename with date and writing data to CSV
             formatted_filename_date = start_date.strftime("%m_%d_%Y")
-            csv_file = os.path.join(CSV_DIR, f"orders_{formatted_filename_date}.csv")
+            csv_file = os.path.join(CSV_DIR, f"{FILENAME_PREFIX}_{formatted_filename_date}.csv")
 
+            # Writing the data to a CSV file
             with open(csv_file, 'w', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([col[0] for col in cur.description])

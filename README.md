@@ -14,7 +14,7 @@ To set up the Snowflake Table to CSV tool on your MacOS, follow these steps:
     Open the terminal 🖥️ and run the following command to create a virtual environment, activate it, and install necessary packages:
 
     ```bash
-    python3.10 -m venv venv && source venv/bin/activate && pip3 install --upgrade pip && pip3 install -r requirements.txt
+    python3 -m venv venv && source venv/bin/activate && pip3 install --upgrade pip && pip3 install -r requirements.txt
     ```
 
 ## Configuration 🔧
@@ -36,7 +36,7 @@ export SNOWFLAKE_WAREHOUSE='your_warehouse'
 Once the environment is set up and configured, you can run the tool using:
 
 ```bash
-python3 snowflake_to_csv_data_exporter.py
+python3 snowflake_table_to_csv_data_exporter.py
 ```
 
 The script will connect to your Snowflake database using the provided credentials, extract data from the specified table, and save it into CSV files in a designated directory 📁. The data extraction is based on the date range defined within the script.
