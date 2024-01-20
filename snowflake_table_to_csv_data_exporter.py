@@ -105,8 +105,7 @@ def create_snowflake_connection():
         return snowflake_conn
     except Exception as e:
         logging.error("Error connecting to Snowflake: %s", e)
-        raise
-
+        raise RuntimeError("An error occurred while connecting to Snowflake.") from e
 
 # Main execution block
 try:
