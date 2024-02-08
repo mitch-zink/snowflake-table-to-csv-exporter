@@ -76,10 +76,13 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
                 CSV_DIR, f"{FILENAME_PREFIX}_{formatted_filename_date}.csv"
             )
 
-            # Writing the data to a CSV file
-            with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
-                writer = csv.writer(csv_file)
+            # Write data to the CSV file
+            with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:  # Open CSV file for writing
+                # Create a CSV writer object with double pipe delimiter and ensure all fields are quoted
+                writer = csv.writer(csv_file, delimiter='|', quotechar='"', quoting=csv.QUOTE_ALL)
+                # Write column headers
                 writer.writerow([col[0] for col in cur.description])
+                # Write each row of data to the CSV file
                 for row in rows:
                     writer.writerow(row)
 
