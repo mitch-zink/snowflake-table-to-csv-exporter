@@ -10,6 +10,7 @@ import snowflake.connector  # For Snowflake database connection
 import csv  # For writing the data to CSV files
 import os  # For handling file paths and directories
 from datetime import datetime, timedelta  # For handling dates
+import io  # Import io to create in-memory file objects
 
 # Setup Streamlit page layout and title
 st.title('Snowflake Data Exporter')
@@ -40,9 +41,10 @@ DATE_COLUMN_NAME = st.sidebar.text_input("Date Column Name", "COLUMN_NAME")
 FILENAME_PREFIX = st.sidebar.text_input("Filename Prefix", "exported_data")
 CSV_DIR = "csv"  # Directory where CSV files will be saved
 
+# Fetches data from Snowflake for a given date range and table, then returns CSV content
 def fetch_and_write_data(connection, day_start, day_end, table_name, date_column_name):
     """
-    Fetches data from Snowflake for a given date range and table, then writes it to a CSV file.
+    Fetches data from Snowflake for a given date range and table, then returns CSV content.
     """
     st.write(f"Fetching data for {day_start.strftime('%Y-%m-%d')}...")
     progress_bar = st.progress(0)  # Initialize progress bar
@@ -66,26 +68,24 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
             rows = cur.fetchall()  # Fetch all rows for the date range
             progress_bar.progress(50)  # Update progress
 
-            # Construct CSV file path
-            formatted_filename_date = day_start.strftime("%Y_%m_%d")
-            csv_file_path = os.path.join(
-                CSV_DIR, f"{FILENAME_PREFIX}_{formatted_filename_date}.csv"
-            )
-
-            # Ensure the CSV directory exists
-            os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
-
-            # Write fetched data to CSV file
-            with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
-                writer = csv.writer(csv_file, delimiter='|', quotechar='"', quoting=csv.QUOTE_ALL)
-                writer.writerow([col[0] for col in cur.description])  # Write column headers
-                writer.writerows(rows)  # Write data rows
+            # Create an in-memory CSV file
+            csv_file = io.StringIO()
+            writer = csv.writer(csv_file, delimiter='|', quotechar='"', quoting=csv.QUOTE_ALL)
+            writer.writerow([col[0] for col in cur.description])  # Write column headers
+            writer.writerows(rows)  # Write data rows
 
             progress_bar.progress(100)  # Complete progress
-            st.success(f"Data written to {csv_file_path} - {len(rows)} rows")
+            st.success(f"Data ready for download - {len(rows)} rows")
+
+            # Reset the pointer of the in-memory file to the beginning
+            csv_file.seek(0)
+
+            return csv_file
 
     except Exception as e:
         st.error(f"Error in fetch_and_write_data: {e}")
+        return None
+
 
 # Function to establish a connection to Snowflake
 def create_snowflake_connection(user, account, role, warehouse, password=None, authenticator='externalbrowser'):
@@ -108,7 +108,7 @@ def create_snowflake_connection(user, account, role, warehouse, password=None, a
         st.error(f"Error connecting to Snowflake: {e}")
         return None
 
-# Button to start the data export process
+# Export data button to trigger the data export process
 if st.sidebar.button('Export Data'):
     # Validate configuration inputs
     if not all([ACCOUNT, USER, ROLE, WAREHOUSE]) or (not use_external_auth and not PASSWORD):
@@ -122,15 +122,22 @@ if st.sidebar.button('Export Data'):
                 st.write("Starting data export...")
                 # Calculate total number of days to export
                 total_days = (END_DATE - START_DATE).days + 1
-                progress = st.progress(0)
-                # Loop through each day and export data
                 for i, single_date in enumerate((START_DATE + timedelta(n) for n in range(total_days)), start=1):
                     current_date = datetime.combine(single_date, datetime.min.time())
                     next_day = current_date + timedelta(days=1)
-                    fetch_and_write_data(
+                    csv_content = fetch_and_write_data(
                         snowflake_connection, current_date, next_day, TABLE_NAME, DATE_COLUMN_NAME
                     )
-                    progress.progress(i / total_days)  # Update progress bar
+                    if csv_content:
+                        formatted_date = current_date.strftime("%Y_%m_%d")
+                        file_name = f"{FILENAME_PREFIX}_{formatted_date}.csv"
+                        # Create a download button for the CSV file
+                        st.download_button(
+                            label="Download data as CSV",
+                            data=csv_content,
+                            file_name=file_name,
+                            mime='text/csv',
+                        )
             finally:
                 if snowflake_connection:
                     snowflake_connection.close()  # Close the Snowflake connection
