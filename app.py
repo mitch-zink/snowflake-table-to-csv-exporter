@@ -10,7 +10,8 @@ import snowflake.connector  # For Snowflake database connection
 import csv  # For writing the data to CSV files
 import os  # For handling file paths and directories
 from datetime import datetime, timedelta  # For handling dates
-import io  # Import io to create in-memory file objects
+import io  # For in-memory file handling
+from zipfile import ZipFile  # For creating ZIP archives
 
 # Setup Streamlit page layout and title
 st.title('Snowflake Data Exporter')
@@ -41,7 +42,6 @@ DATE_COLUMN_NAME = st.sidebar.text_input("Date Column Name", "COLUMN_NAME")
 FILENAME_PREFIX = st.sidebar.text_input("Filename Prefix", "exported_data")
 CSV_DIR = "csv"  # Directory where CSV files will be saved
 
-# Fetches data from Snowflake for a given date range and table, then returns CSV content
 def fetch_and_write_data(connection, day_start, day_end, table_name, date_column_name):
     """
     Fetches data from Snowflake for a given date range and table, then returns CSV content.
@@ -77,17 +77,14 @@ def fetch_and_write_data(connection, day_start, day_end, table_name, date_column
             progress_bar.progress(100)  # Complete progress
             st.success(f"Data ready for download - {len(rows)} rows")
 
-            # Reset the pointer of the in-memory file to the beginning
-            csv_file.seek(0)
-
-            return csv_file
+            # Get the CSV content as a string from the StringIO object
+            csv_content = csv_file.getvalue()
+            return csv_content
 
     except Exception as e:
         st.error(f"Error in fetch_and_write_data: {e}")
         return None
 
-
-# Function to establish a connection to Snowflake
 def create_snowflake_connection(user, account, role, warehouse, password=None, authenticator='externalbrowser'):
     """
     Establishes a connection to Snowflake using the provided credentials and authentication method.
@@ -108,19 +105,16 @@ def create_snowflake_connection(user, account, role, warehouse, password=None, a
         st.error(f"Error connecting to Snowflake: {e}")
         return None
 
-# Export data button to trigger the data export process
 if st.sidebar.button('Export Data'):
-    # Validate configuration inputs
     if not all([ACCOUNT, USER, ROLE, WAREHOUSE]) or (not use_external_auth and not PASSWORD):
         st.error("Please fill in all the configuration fields.")
     else:
+        memory_files = []  # List to store in-memory CSV contents
         with st.spinner('Connecting to Snowflake...'):
-            # Establish connection to Snowflake
             snowflake_connection = create_snowflake_connection(USER, ACCOUNT, ROLE, WAREHOUSE, PASSWORD, authenticator)
         if snowflake_connection:
             try:
                 st.write("Starting data export...")
-                # Calculate total number of days to export
                 total_days = (END_DATE - START_DATE).days + 1
                 for i, single_date in enumerate((START_DATE + timedelta(n) for n in range(total_days)), start=1):
                     current_date = datetime.combine(single_date, datetime.min.time())
@@ -131,18 +125,22 @@ if st.sidebar.button('Export Data'):
                     if csv_content:
                         formatted_date = current_date.strftime("%Y_%m_%d")
                         file_name = f"{FILENAME_PREFIX}_{formatted_date}.csv"
-                        # Convert StringIO content to string, then encode to bytes
-                        csv_string = csv_content.getvalue()
-                        csv_bytes = csv_string.encode()
-                        # Create a download button for the CSV file
-                        st.download_button(
-                            label="Download data as CSV",
-                            data=csv_bytes,  # Pass the encoded bytes
-                            file_name=file_name,
-                            mime='text/csv',
-                        )
+                        memory_files.append((file_name, csv_content))
 
+                # Bundle all CSV contents into a single ZIP file
+                if memory_files:
+                    zip_buffer = io.BytesIO()
+                    with ZipFile(zip_buffer, 'w') as zip_file:
+                        for file_name, data in memory_files:
+                            zip_file.writestr(file_name, data)
+                    zip_buffer.seek(0)
+                    st.download_button(
+                        label="Download All CSVs as ZIP",
+                        data=zip_buffer.getvalue(),
+                        file_name="all_csv_exports.zip",
+                        mime="application/zip"
+                    )
             finally:
                 if snowflake_connection:
-                    snowflake_connection.close()  # Close the Snowflake connection
+                    snowflake_connection.close()
                     st.info("Connection closed")
