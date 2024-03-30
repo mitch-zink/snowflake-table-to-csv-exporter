@@ -131,13 +131,17 @@ if st.sidebar.button('Export Data'):
                     if csv_content:
                         formatted_date = current_date.strftime("%Y_%m_%d")
                         file_name = f"{FILENAME_PREFIX}_{formatted_date}.csv"
+                        # Convert StringIO content to string, then encode to bytes
+                        csv_string = csv_content.getvalue()
+                        csv_bytes = csv_string.encode()
                         # Create a download button for the CSV file
                         st.download_button(
                             label="Download data as CSV",
-                            data=csv_content,
+                            data=csv_bytes,  # Pass the encoded bytes
                             file_name=file_name,
                             mime='text/csv',
                         )
+
             finally:
                 if snowflake_connection:
                     snowflake_connection.close()  # Close the Snowflake connection
