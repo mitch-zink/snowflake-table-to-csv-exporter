@@ -6,7 +6,7 @@
 [![Snowflake](https://img.shields.io/badge/-Snowflake-29B5E8?style=for-the-badge&logo=snowflake&logoColor=white)](https://snowflake.com/)
 [![Streamlit](https://img.shields.io/badge/-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
 
-This tool is designed to efficiently export data from a specified Snowflake table into CSV files 🗄️. Each CSV file contains data corresponding to a specific date, allowing for organized and incremental data extraction.
+This tool is designed to efficiently export data from a specified Snowflake table into CSV files 🗄️
 
 ## Setup Instructions
 
