@@ -40,26 +40,27 @@ END_DATE = st.sidebar.date_input("End Date", datetime.now().date())
 TABLE_NAME = st.sidebar.text_input("Table Name", "DATABASE.SCHEMA.TABLE")
 DATE_COLUMN_NAME = st.sidebar.text_input("Date Column Name", "COLUMN_NAME")
 FILENAME_PREFIX = st.sidebar.text_input("Filename Prefix", "exported_data")
+GROUP_BY = st.sidebar.selectbox("Group By", ["Day", "Month", "Year"])
 CSV_DIR = "csv"  # Directory where CSV files will be saved
 
-def fetch_and_write_data(connection, day_start, day_end, table_name, date_column_name):
+def fetch_and_write_data(connection, start, end, table_name, date_column_name):
     """
     Fetches data from Snowflake for a given date range and table, then returns CSV content.
     """
-    st.write(f"Fetching data for {day_start.strftime('%Y-%m-%d')}...")
+    st.write(f"Fetching data for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}...")
     progress_bar = st.progress(0)  # Initialize progress bar
 
     # Format dates for SQL query
     date_info = {
-        "start_date_str": day_start.strftime("%Y-%m-%d"),
-        "end_date_str": day_end.strftime("%Y-%m-%d"),
+        "start_date_str": start.strftime("%Y-%m-%d"),
+        "end_date_str": end.strftime("%Y-%m-%d"),
     }
 
     # SQL query to fetch data
     query = (
         f"SELECT * FROM {table_name} "
-        f"WHERE {date_column_name} >= '{date_info['start_date_str']}' "
-        f"AND {date_column_name} < '{date_info['end_date_str']}'"
+        f"WHERE {date_column_name}::DATE >= '{date_info['start_date_str']}'::DATE "
+        f"AND {date_column_name}::DATE < '{date_info['end_date_str']}'::DATE"
     )
 
     try:
@@ -105,6 +106,15 @@ def create_snowflake_connection(user, account, role, warehouse, password=None, a
         st.error(f"Error connecting to Snowflake: {e}")
         return None
 
+def get_next_time_interval(current, group_by):
+    if group_by == "Day":
+        return current + timedelta(days=1)
+    elif group_by == "Month":
+        next_month = current.replace(day=28) + timedelta(days=4)  # This will never fail
+        return next_month - timedelta(days=next_month.day - 1)
+    elif group_by == "Year":
+        return current.replace(year=current.year + 1, month=1, day=1)
+
 if st.sidebar.button('Export Data'):
     if not all([ACCOUNT, USER, ROLE, WAREHOUSE]) or (not use_external_auth and not PASSWORD):
         st.error("Please fill in all the configuration fields.")
@@ -115,17 +125,20 @@ if st.sidebar.button('Export Data'):
         if snowflake_connection:
             try:
                 st.write("Starting data export...")
-                total_days = (END_DATE - START_DATE).days + 1
-                for i, single_date in enumerate((START_DATE + timedelta(n) for n in range(total_days)), start=1):
-                    current_date = datetime.combine(single_date, datetime.min.time())
-                    next_day = current_date + timedelta(days=1)
+                current_date = datetime.combine(START_DATE, datetime.min.time())
+                end_date = datetime.combine(END_DATE + timedelta(days=1), datetime.min.time())
+                while current_date < end_date:
+                    next_date = get_next_time_interval(current_date, GROUP_BY)
+                    if next_date > end_date:
+                        next_date = end_date
                     csv_content = fetch_and_write_data(
-                        snowflake_connection, current_date, next_day, TABLE_NAME, DATE_COLUMN_NAME
+                        snowflake_connection, current_date, next_date, TABLE_NAME, DATE_COLUMN_NAME
                     )
                     if csv_content:
-                        formatted_date = current_date.strftime("%Y_%m_%d")
+                        formatted_date = current_date.strftime("%Y_%m_%d") if GROUP_BY == "Day" else current_date.strftime("%Y_%m") if GROUP_BY == "Month" else current_date.strftime("%Y")
                         file_name = f"{FILENAME_PREFIX}_{formatted_date}.csv"
                         memory_files.append((file_name, csv_content))
+                    current_date = next_date
 
                 # Bundle all CSV contents into a single ZIP file
                 if memory_files:
