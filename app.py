@@ -13,7 +13,10 @@ from datetime import datetime, timedelta  # For handling dates
 import io  # For in-memory file handling
 from zipfile import ZipFile  # For creating ZIP archives
 import sqlparse
-from concurrent.futures import ThreadPoolExecutor, as_completed  # For parallel execution
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    as_completed,
+)  # For parallel execution
 import threading
 
 stop_event = threading.Event()
@@ -42,12 +45,19 @@ else:
     authenticator = "externalbrowser"  # Use external browser for SSO authentication
 
 # Widgets to input the data export configuration: date range, table details
-START_DATE = st.sidebar.date_input("Start Date", datetime.now().date() - timedelta(days=1), key="start_date")
+START_DATE = st.sidebar.date_input(
+    "Start Date", datetime.now().date() - timedelta(days=1), key="start_date"
+)
 END_DATE = st.sidebar.date_input("End Date", datetime.now().date(), key="end_date")
-TABLE_NAME = st.sidebar.text_input("Table Name", placeholder="DATABASE.SCHEMA.TABLE", key="table_name")
-DATE_COLUMN_NAME = st.sidebar.text_input("Date Column Name", placeholder="COLUMN_NAME", key="date_column_name")
+TABLE_NAME = st.sidebar.text_input(
+    "Table Name", placeholder="DATABASE.SCHEMA.TABLE", key="table_name"
+)
+DATE_COLUMN_NAME = st.sidebar.text_input(
+    "Date Column Name", placeholder="COLUMN_NAME", key="date_column_name"
+)
 GROUP_BY = st.sidebar.selectbox("Group By", ["None", "Day", "Month", "Year"])
 CSV_DIR = "csv"  # Directory where CSV files will be saved
+
 
 def create_snowflake_connection(
     user, account, role, warehouse, password=None, authenticator="externalbrowser"
@@ -88,6 +98,7 @@ def get_next_time_interval(current, group_by):
     elif group_by == "Year":
         return current.replace(year=current.year + 1, month=1, day=1)
 
+
 def validate_date_column(connection, table_name, date_column_name):
     """
     Validates that the specified date column exists in the given table.
@@ -100,6 +111,7 @@ def validate_date_column(connection, table_name, date_column_name):
     except Exception as e:
         st.error(f"Date column validation failed: {e}")
         return False
+
 
 def fetch_and_write_data(connection, start, end, table_name, date_column_name):
     """
@@ -119,11 +131,13 @@ def fetch_and_write_data(connection, start, end, table_name, date_column_name):
     )
 
     # Format the query to be lowercase and pretty
-    formatted_query = sqlparse.format(query, reindent=True, keyword_case='lower')
+    formatted_query = sqlparse.format(query, reindent=True, keyword_case="lower")
 
     try:
         with connection.cursor() as cur:
-            with st.spinner(f"Running query for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}..."):
+            with st.spinner(
+                f"Running query for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}..."
+            ):
                 cur.execute(query)
                 rows = cur.fetchall()  # Fetch all rows for the date range
 
@@ -132,7 +146,9 @@ def fetch_and_write_data(connection, start, end, table_name, date_column_name):
                 writer = csv.writer(
                     csv_file, delimiter="|", quotechar='"', quoting=csv.QUOTE_ALL
                 )
-                writer.writerow([col[0] for col in cur.description])  # Write column headers
+                writer.writerow(
+                    [col[0] for col in cur.description]
+                )  # Write column headers
                 writer.writerows(rows)  # Write data rows
 
                 # Get the CSV content as a string from the StringIO object
@@ -142,6 +158,7 @@ def fetch_and_write_data(connection, start, end, table_name, date_column_name):
     except Exception as e:
         st.error(f"Error in fetch_and_write_data: {e}")
         return None, None
+
 
 def parallel_fetch(connection, date_ranges, table_name, date_column_name):
     """
@@ -155,26 +172,40 @@ def parallel_fetch(connection, date_ranges, table_name, date_column_name):
 
     def fetch_wrapper(start_end):
         start, end = start_end
-        return (start, end, fetch_and_write_data(connection, start, end, table_name, date_column_name))
+        return (
+            start,
+            end,
+            fetch_and_write_data(connection, start, end, table_name, date_column_name),
+        )
 
     with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {executor.submit(fetch_wrapper, date_range): date_range for date_range in date_ranges}
+        futures = {
+            executor.submit(fetch_wrapper, date_range): date_range
+            for date_range in date_ranges
+        }
         for i, future in enumerate(as_completed(futures)):
             start, end, (csv_content, formatted_query) = future.result()
             if csv_content:
                 formatted_date = (
-                    start.strftime("%Y_%m_%d") if GROUP_BY == "Day"
-                    else (start.strftime("%Y_%m") if GROUP_BY == "Month"
-                          else start.strftime("%Y"))
+                    start.strftime("%Y_%m_%d")
+                    if GROUP_BY == "Day"
+                    else (
+                        start.strftime("%Y_%m")
+                        if GROUP_BY == "Month"
+                        else start.strftime("%Y")
+                    )
                 )
                 file_name = f"{table_name.replace('.', '_')}_{formatted_date}.csv"
                 memory_files.append((file_name, csv_content))
                 queries.append(formatted_query)
-                progress_text.text(f"Completed query for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+                progress_text.text(
+                    f"Completed query for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+                )
                 st.code(formatted_query, language="sql")
             progress_bar.progress((i + 1) / total)
 
     return memory_files
+
 
 if st.sidebar.button("Export Data", key="export_data_button"):
     required_fields = {
@@ -228,7 +259,12 @@ if st.sidebar.button("Export Data", key="export_data_button"):
                             date_ranges.append((current_date, next_date))
                             current_date = next_date
 
-                        memory_files = parallel_fetch(snowflake_connection, date_ranges, TABLE_NAME, DATE_COLUMN_NAME)
+                        memory_files = parallel_fetch(
+                            snowflake_connection,
+                            date_ranges,
+                            TABLE_NAME,
+                            DATE_COLUMN_NAME,
+                        )
 
                     # Bundle all CSV contents into a single ZIP file
                     if memory_files:
