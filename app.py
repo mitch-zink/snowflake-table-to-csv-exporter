@@ -88,6 +88,19 @@ def get_next_time_interval(current, group_by):
     elif group_by == "Year":
         return current.replace(year=current.year + 1, month=1, day=1)
 
+def validate_date_column(connection, table_name, date_column_name):
+    """
+    Validates that the specified date column exists in the given table.
+    """
+    query = f"SELECT {date_column_name} FROM {table_name} LIMIT 1"
+    try:
+        with connection.cursor() as cur:
+            cur.execute(query)
+            return True
+    except Exception as e:
+        st.error(f"Date column validation failed: {e}")
+        return False
+
 def fetch_and_write_data(connection, start, end, table_name, date_column_name):
     """
     Fetches data from Snowflake for a given date range and table, then returns CSV content and the formatted query.
@@ -163,7 +176,7 @@ def parallel_fetch(connection, date_ranges, table_name, date_column_name):
 
     return memory_files
 
-if st.sidebar.button("Export Data"):
+if st.sidebar.button("Export Data", key="export_data_button"):
     required_fields = {
         "Snowflake Account": ACCOUNT,
         "User": USER,
@@ -188,49 +201,52 @@ if st.sidebar.button("Export Data"):
                 USER, ACCOUNT, ROLE, WAREHOUSE, PASSWORD, authenticator
             )
         if snowflake_connection:
-            try:
-                if GROUP_BY == "None":
-                    csv_content, formatted_query = fetch_and_write_data(
-                        snowflake_connection,
-                        START_DATE,
-                        END_DATE + timedelta(days=1),
-                        TABLE_NAME,
-                        DATE_COLUMN_NAME,
-                    )
-                    if csv_content:
-                        file_name = f"{FILENAME_PREFIX}_full.csv"
-                        memory_files.append((file_name, csv_content))
-                        st.code(formatted_query, language="sql")
-                        st.success("Query completed successfully.")
-                else:
-                    date_ranges = []
-                    current_date = datetime.combine(START_DATE, datetime.min.time())
-                    end_date = datetime.combine(
-                        END_DATE + timedelta(days=1), datetime.min.time()
-                    )
-                    while current_date < end_date:
-                        next_date = get_next_time_interval(current_date, GROUP_BY)
-                        if next_date > end_date:
-                            next_date = end_date
-                        date_ranges.append((current_date, next_date))
-                        current_date = next_date
+            if validate_date_column(snowflake_connection, TABLE_NAME, DATE_COLUMN_NAME):
+                try:
+                    if GROUP_BY == "None":
+                        csv_content, formatted_query = fetch_and_write_data(
+                            snowflake_connection,
+                            START_DATE,
+                            END_DATE + timedelta(days=1),
+                            TABLE_NAME,
+                            DATE_COLUMN_NAME,
+                        )
+                        if csv_content:
+                            file_name = f"{FILENAME_PREFIX}_full.csv"
+                            memory_files.append((file_name, csv_content))
+                            st.code(formatted_query, language="sql")
+                            st.success("Query completed successfully.")
+                    else:
+                        date_ranges = []
+                        current_date = datetime.combine(START_DATE, datetime.min.time())
+                        end_date = datetime.combine(
+                            END_DATE + timedelta(days=1), datetime.min.time()
+                        )
+                        while current_date < end_date:
+                            next_date = get_next_time_interval(current_date, GROUP_BY)
+                            if next_date > end_date:
+                                next_date = end_date
+                            date_ranges.append((current_date, next_date))
+                            current_date = next_date
 
-                    memory_files = parallel_fetch(snowflake_connection, date_ranges, TABLE_NAME, DATE_COLUMN_NAME)
+                        memory_files = parallel_fetch(snowflake_connection, date_ranges, TABLE_NAME, DATE_COLUMN_NAME)
 
-                # Bundle all CSV contents into a single ZIP file
-                if memory_files:
-                    zip_buffer = io.BytesIO()
-                    with ZipFile(zip_buffer, "w") as zip_file:
-                        for file_name, data in memory_files:
-                            zip_file.writestr(file_name, data)
-                    zip_buffer.seek(0)
-                    st.download_button(
-                        label="Download All CSVs as ZIP",
-                        data=zip_buffer.getvalue(),
-                        file_name="all_csv_exports.zip",
-                        mime="application/zip",
-                    )
-            finally:
-                if snowflake_connection:
-                    snowflake_connection.close()
-                    st.info("Connection closed")
+                    # Bundle all CSV contents into a single ZIP file
+                    if memory_files:
+                        zip_buffer = io.BytesIO()
+                        with ZipFile(zip_buffer, "w") as zip_file:
+                            for file_name, data in memory_files:
+                                zip_file.writestr(file_name, data)
+                        zip_buffer.seek(0)
+                        st.download_button(
+                            label="Download All CSVs as ZIP",
+                            data=zip_buffer.getvalue(),
+                            file_name="all_csv_exports.zip",
+                            mime="application/zip",
+                        )
+                finally:
+                    if snowflake_connection:
+                        snowflake_connection.close()
+                        st.info("Connection closed")
+            else:
+                st.error("The specified date column does not exist in the table.")
