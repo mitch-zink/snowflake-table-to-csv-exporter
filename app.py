@@ -14,16 +14,19 @@ import io  # For in-memory file handling
 from zipfile import ZipFile  # For creating ZIP archives
 import sqlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed  # For parallel execution
+import threading
+
+stop_event = threading.Event()
 
 # Setup Streamlit page layout and title
 st.title("Snowflake Data Exporter")
 st.sidebar.header("Configuration")
 
 # Streamlit widgets to input Snowflake connection details
-ACCOUNT = st.sidebar.text_input("Snowflake Account")
-USER = st.sidebar.text_input("User")
-ROLE = st.sidebar.text_input("Role")
-WAREHOUSE = st.sidebar.text_input("Warehouse")
+ACCOUNT = st.sidebar.text_input("Snowflake Account", placeholder="abc12345")
+USER = st.sidebar.text_input("User", placeholder="admin@snowflake.com")
+ROLE = st.sidebar.text_input("Role", placeholder="SYSADMIN")
+WAREHOUSE = st.sidebar.text_input("Warehouse", placeholder="COMPUTE_WH")
 
 # Widget to choose the authentication method: password or external browser
 use_external_auth = st.sidebar.checkbox("Use External Browser Authentication")
@@ -39,13 +42,10 @@ else:
     authenticator = "externalbrowser"  # Use external browser for SSO authentication
 
 # Widgets to input the data export configuration: date range, table details
-START_DATE = st.sidebar.date_input(
-    "Start Date", datetime.now().date() - timedelta(days=1)
-)
-END_DATE = st.sidebar.date_input("End Date", datetime.now().date())
-TABLE_NAME = st.sidebar.text_input("Table Name", "DATABASE.SCHEMA.TABLE")
-DATE_COLUMN_NAME = st.sidebar.text_input("Date Column Name", "COLUMN_NAME")
-FILENAME_PREFIX = st.sidebar.text_input("Filename Prefix", "exported_data")
+START_DATE = st.sidebar.date_input("Start Date", datetime.now().date() - timedelta(days=1), key="start_date")
+END_DATE = st.sidebar.date_input("End Date", datetime.now().date(), key="end_date")
+TABLE_NAME = st.sidebar.text_input("Table Name", placeholder="DATABASE.SCHEMA.TABLE", key="table_name")
+DATE_COLUMN_NAME = st.sidebar.text_input("Date Column Name", placeholder="COLUMN_NAME", key="date_column_name")
 GROUP_BY = st.sidebar.selectbox("Group By", ["None", "Day", "Month", "Year"])
 CSV_DIR = "csv"  # Directory where CSV files will be saved
 
@@ -167,7 +167,7 @@ def parallel_fetch(connection, date_ranges, table_name, date_column_name):
                     else (start.strftime("%Y_%m") if GROUP_BY == "Month"
                           else start.strftime("%Y"))
                 )
-                file_name = f"{FILENAME_PREFIX}_{formatted_date}.csv"
+                file_name = f"{table_name.replace('.', '_')}_{formatted_date}.csv"
                 memory_files.append((file_name, csv_content))
                 queries.append(formatted_query)
                 progress_text.text(f"Completed query for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
@@ -186,7 +186,6 @@ if st.sidebar.button("Export Data", key="export_data_button"):
         "End Date": END_DATE,
         "Table Name": TABLE_NAME,
         "Date Column Name": DATE_COLUMN_NAME,
-        "Filename Prefix": FILENAME_PREFIX,
     }
 
     missing_fields = [field for field, value in required_fields.items() if not value]
@@ -212,7 +211,7 @@ if st.sidebar.button("Export Data", key="export_data_button"):
                             DATE_COLUMN_NAME,
                         )
                         if csv_content:
-                            file_name = f"{FILENAME_PREFIX}_full.csv"
+                            file_name = f"{TABLE_NAME.replace('.', '_')}_full.csv"
                             memory_files.append((file_name, csv_content))
                             st.code(formatted_query, language="sql")
                             st.success("Query completed successfully.")
