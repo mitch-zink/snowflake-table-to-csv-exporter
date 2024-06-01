@@ -10,17 +10,14 @@ This tool is designed to efficiently export data from a specified Snowflake tabl
 
 ## Setup Instructions
 
-### For Mac/Linux
+### Create a virtual env, install dependencies, and then run the streamlit app
 
-1. **Create a virtual env, install dependencies, and then run the streamlit app**
+#### For Mac/Linux
+```bash
+python3 -m venv venv && source venv/bin/activate && pip3 install --upgrade pip && pip3 install -r requirements.txt && streamlit run app.py
+```
 
-    ```bash
-    python3 -m venv venv && source venv/bin/activate && pip3 install --upgrade pip && pip3 install -r requirements.txt && streamlit run app.py
-    ```
-
-### For Windows
-
-1. **Create a virtual env, install dependencies, and then run the streamlit app**
-    ```powershell
-    py -m venv venv; .\venv\Scripts\Activate.ps1; python -m pip install --upgrade pip; pip install -r requirements.txt; streamlit run app.py
-    ```
+#### For Windows
+```powershell
+py -m venv venv; .\venv\Scripts\Activate.ps1; python -m pip install --upgrade pip; pip install -r requirements.txt; streamlit run app.py
+```
