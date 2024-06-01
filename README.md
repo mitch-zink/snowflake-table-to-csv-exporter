@@ -20,20 +20,7 @@ This tool is designed to efficiently export data from a specified Snowflake tabl
 
 ### For Windows
 
-1. **Allow Script Execution (if necessary)**
-
+1. **Create a virtual env, install dependencies, and then run the streamlit app**
     ```powershell
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-    ```
-
-2. **Creating a Virtual Environment and Installing Dependencies**
-
-    ```powershell
-    py -m venv venv; .\venv\Scripts\Activate.ps1; python -m pip install --upgrade pip; pip install -r requirements.txt
-    ```
-
-3. **Running the Streamlit App**
-
-    ```powershell
-    streamlit run app.py
+    py -m venv venv; .\venv\Scripts\Activate.ps1; python -m pip install --upgrade pip; pip install -r requirements.txt; streamlit run app.py
     ```
