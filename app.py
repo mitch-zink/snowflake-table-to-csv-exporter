@@ -1,7 +1,7 @@
 """
 Description: This script exports data from a Snowflake table to CSV files using Streamlit for the interface.
 Author: Mitch Zink
-Last Updated: 3/30/2024
+Last Updated: 6/1/2024
 """
 
 # Import necessary libraries
